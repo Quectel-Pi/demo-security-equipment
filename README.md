@@ -1,231 +1,95 @@
 # Security Equipment
 
-[简体中文](README.zh-CN.md) | [English](README.md)
+[中文](README.zh-CN.md) | English
 
-***Copyright © Quectel Wireless Solutions Co\., Ltd\. 2026\. All rights reserved\.***
+This project is a security-monitoring and fire-detection demo implemented on the [Quectel Pi M2 Smart Single-Board Computer](https://www.quectel.com.cn/quectel-pi/documentation-center). A USB camera streams live video while two RKNN models run in parallel on the dual-core NPU: one detects people (intrusion-zone alarms), the other detects fire and smoke. A servo pan-tilt, a Web console, and automatic local forensics complete the loop. All processing runs on-device — no cloud dependency.
 
----
+![overview](images/overview.png)
 
-# Revision History
+## Features
 
-|Version|Date|Author|Change Description|
-|---|---|---|---|
-|\-|2026\-11\-11||Document created|
-|0\.1|2026\-11\-11||Temporary version|
+- Real-time person detection with a configurable intrusion zone (5 s dwell triggers the alarm)
+- Fire & smoke detection (YOLOv5 model trained on the open D-Fire dataset), tiered alarms plus a static-target false-positive fuse
+- Web console at `http://<board-ip>:5000`: live video, pan-tilt buttons (◀ ◎ ▶), overlay toggles & opacity slider, snapshot & record — EN/中文 switchable
+- Automatic forensics on every alarm: snapshot + 10 s clip (5 s before, 5 s after), with file rotation
+- LED / buzzer alarm output, timestamped categorized terminal log mirrored to `records/logs/run.log`
+- ZP15S bus servo controlled over UART (ASCII commands, no PWM driving required)
+- Pure Python, zero C compilation; NPU inference on RK3576
 
-# Overview
+## Hardware Requirements
 
-This project is an example of security monitoring and fire detection based on the Quectel Pi M2 smart main control board, a USB camera, and a servo\. 
+- Quectel Pi M2 single-board computer (factory Debian 13 image)
+- USB UVC camera (1080p MJPG recommended)
+- ZP15S bus servo as camera pan-tilt: signal → PIN 8, GND → PIN 6, VCC 5V → PIN 4
+- 5 V ≥ 3 A power adapter (a PC USB port cannot power board + servo)
+- HDMI display / keyboard & mouse: optional, the demo is watched in a browser
 
-The project is based on Python and a Web interface, uses YOLO v8 to train models on open\-source datasets, can accurately identify people and flames within the specified range of the camera, and after the specified warning time is reached, emits an alarm sound and records the footage before and after the event\. It also provides a servo to adjust the camera's field of view\.
+## Software Environment
 
-<img width="800" alt="1.Overview" src="images/1.Overview.png" />
+- OS: Debian 13 (default image of Quectel Pi M2)
+- Python: 3.12 with rknnlite — **not preinstalled on a fresh board**; `tools/setup.sh` bootstraps it automatically (network required)
 
-# Development Materials
+## Quick Start
 
-## Bill of Materials
+1. Clone the project on the board:
 
-> Note:tips
-> 
-> The development accessories are for reference only\. Different development environments may vary\.
-> 
-> 
-
-|**Accessory Name**|**Quantity**|**Specification or Description**|
-|---|---|---|
-|Quectel Pi M2 smart main control board|1 |Main control|
-|USB UVC camera|1 |Recommended to support 1080p MJPG, connected via the M2's USB 3\.0 interface|
-|HDMI monitor|1 |Desktop demonstration|
-|USB keyboard and mouse|1 |For operating the desktop APP, optional|
-|ZP15S servo|1|Used for camera rotation|
-|Power adapter|1|Select according to the power supply requirements of Quectel Pi M2|
-|Active speaker or loudspeaker|1|For demonstrating alarm sound, optional|
-
-## Reference Photos of Accessories
-
-<img width="800" alt="2.reference" src="images/2.reference.png" />
-
-# Quick Start
-
-## Development Preparation
-
-The Quectel Pi M2 smart main control board comes with the Debian 13 system image by default\. You can start development directly by following the steps below\.
-
-## Hardware Connection
-
-1. **M2 power connection: USB\-C power**
-
-2. **Module connection:**
-
-|**Servo**|**M2**|
-|---|---|
-|VCC \- 5V|PIN 4|
-|GND|PIN 6|
-|RX|PIN 8|
-
-## Project Implementation
-
-### Obtain the Code
-
-Use git to clone the project code\. The git repository address is as follows:
-
-```Bash
+```bash
+sudo apt update && sudo apt install -y git
 git clone https://github.com/Quectel-Pi/demo-security-equipment.git
+cd demo-security-equipment
 ```
 
-After execution, the file directory is as follows:
+2. One-click environment setup (installs Python 3.12 + rknnlite + dependencies, enables UART1 for the servo):
 
-```Bash
-demo-security-equipment/
-├── README.md / README.zh-CN.md
-├── start.sh             Entry script
-├── config.yaml          Configuration file
-├── src/
-│   ├── main.py
-│   ├── camera/
-│   │   └── capture.py       V4L2 camera: auto-lookup by device name + liveness detection
-│   ├── vision/
-│   │   ├── pose_detector.py   Human pose inference (runs yolo_pose.rknn)
-│   │   └── fire_smoke.py      Flame & smoke inference (runs dfire_yolov5s.rknn)
-│   ├── logic/
-│   │   ├── intrusion.py       Intrusion judgment: trigger alarm when staying in zone for 5 seconds
-│   │   └── fire_alarm.py      Graded alarm: continuous flame hits / smoke window counter / static anti-false-positive fuse
-│   ├── io/
-│   │   ├── alarm.py           Alarm output: LED + buzzer
-│   │   ├── stream.py          Web service: video streaming + API + web console page
-│   │   └── recorder.py        Evidence collection: snapshot capture / event log / pre & post alarm video clips
-│   └── servo/
-│       └── servo_zp.py        ZP15S servo driver
-├── models/              Vision model files
-├── assets/              Alarm audio (alarm.wav, auto-generated on first board startup)
-├── tools/
-│   ├── check_env.py         Environment checker: verify Python, dependencies, camera and model files item by item
-│   ├── setup.sh             One-click setup: auto-install missing dependencies + enable UART1
-│   ├── fire_lab.py          Flame & smoke model field tester: per-frame score and motion statistics
-│   ├── peek_model.py        RKNN model inspector: inspect input size and output layout for unknown models
-│   └── zp_test.py           Standalone servo test: verify rotation without launching the main program
-└── records/ (auto-generated on board)    Captured JPGs, event log events.jsonl, evidence video rec/ with auto rotation   
-```
-
-### Verify Environment
-
-Check the environment for python, camera, numpy, etc\.
-
-```Bash
-cd demo-security-equipment/
-
-# 1.One-click configuration
+```bash
 sudo sh tools/setup.sh
+sudo reboot          # only if setup.sh reports UART1 was just enabled
+```
 
-# 2.Check configuration
+3. Run, then open `http://<board-ip>:5000` in a browser:
+
+```bash
+sh start.sh            # full function, alarm output on
+sh start.sh --no-alarm # observation only
+```
+
+A healthy launch prints one `[启动] OK` status line per component. Optionally verify the environment first:
+
+```bash
 /opt/py312/bin/python3.12 tools/check_env.py
 ```
 
-### Run the Program
+![ui](images/ui.png)
 
-After executing the program, open the browser address to see the screen:[http://127\.0\.0\.1:5000/](http://127.0.0.1:5000/)
+## Project Structure
 
-```Bash
-# 1.Full functionality
-sh start.sh
-
-# 2.Silent version
-sh start.sh --no-alarm
+```
+demo-security-equipment/
+├── start.sh             # single entry point
+├── config.yaml          # all tunables (camera / detection / alarm / record / servo / overlay)
+├── src/                 # source code
+│   ├── main.py          # capture + inference + scheduling
+│   ├── camera/          # V4L2 camera (auto-detect by device name)
+│   ├── vision/          # RKNN inference (person / fire-smoke)
+│   ├── logic/           # intrusion & tiered-alarm rules
+│   ├── io/              # LED/buzzer, Flask console + APIs, forensic recorder, applog
+│   └── servo/           # ZP15S UART driver
+├── models/              # production RKNN models
+├── tools/               # check_env.py / setup.sh / diagnostics
+└── images/              # README assets
 ```
 
-### File Configuration
+## Models
 
-Necessary parameters can be modified through config\.yaml, for example:
+- `yolo_pose.rknn` — person detection, from the Quectel Pi M2 SDK examples
+- `dfire_yolov5s.rknn` — fire & smoke detection, converted from a YOLOv5 model pretrained on [D-Fire](https://github.com/gaia-solutions-on-demand/DFireDataset) (~21k open-source images, includes negative samples)
 
-```Bash
-# Web display box parameters
-display:
-  show_boxes: true              # Master switch for boxes: false = no recognition boxes are drawn on the screen (including zone boxes)
-  show_person: true             # Person box
-  show_fire: true               # Flame/smoke box
-  show_zone: true               # Arming zone box line (warning range)
-  line_width: 2                 # Box line width (set to 1 for a thinner line)
-  font_scale: 0.55              # Font size of labels on boxes
-  box_alpha: 1.0                # Box line opacity 0.2~1.0 (around 0.6 = semi-transparent watermark effect)
-  
-# Recording
-record:
-  save_dir: records             # Snapshot jpg + events.jsonl
-  enabled: true
-  rec_dir: records/rec          # Recording output folder (forensic + manual; absolute path such as /userdata/rec can be written)
-  pre_s: 5                      # Duration before alarm
-  post_s: 5                     # Duration after alarm
-  fps: 10
-  keep_files: 3                 # Forensic recordings keep only the latest 3 segments; the 4th segment automatically overwrites the oldest when written to disk
-  manual_keep: 15               # Manual recordings keep only the latest 15 segments (single segment limit 10 minutes)
-```
+## Configuration & Documentation
 
-After the configuration is complete, restart the demo and force\-refresh the page\.
+Every runtime parameter — detection thresholds, intrusion polygon, overlay visibility, forensic rotation, servo step — lives in `config.yaml`. Wiring photos, the full parameter guide, UI details and FAQ are maintained in the [Quectel Pi documentation center](https://www.quectel.com.cn/quectel-pi/documentation-center).
 
-### Logging System
+## Reporting Issues
 
-Logs in this demo are categorized into **Event Logs** and **Visual Logs**:
+If you encounter any issues during use, please submit technical inquiries on the [Quectel Official Forum](https://forumschinese.quectel.com/c/quectel-pi/58). Our technical support team will respond promptly.
 
-**Event Logs** include:
-
-1. Real-time terminal logs: Continuously print messages to the terminal after program startup.
-
-2. File-based logs: Synchronously write to `run.log` after startup. The log from the previous run will be overwritten each time the program restarts.
-
-3. Event JSON logs: `record/event.jsonl`. Only alarm events are recorded. One JSON object per line (timestamp / type / confidence / coordinates / snapshot filename). New entries are appended without overwriting existing content.
-
-<img width="800" alt="3.Log_shell" src="images/3.Log_shell.png" />
-
-<img width="800" alt="3.Log_run" src="images/3.Log_run.png" />
-
-**Visual Logs** include:
-
-1. Event evidence videos: `records/rec/evt_*.mp4`. **Only the latest 3 clips are kept**. The oldest clip will be automatically deleted once a 4th clip is generated.
-
-2. Alert snapshots: `records/*.jpg`. One image is captured for each alarm trigger or manual photo capture.
-
-3. Manual recordings: A maximum of 15 clips are retained. Each clip is capped at 10 minutes.
-
-<img width="800" alt="3.Log_rec" src="images/3.Log_rec.png" />
-
-## UI Interface Description
-
-It mainly consists of two parts: screen display and console:
-
-1. The console can adjust the camera angle through the Left/Center/Right buttons;
-
-2. The console can choose whether to enable various boxes on the screen and the opacity of the boxes;
-
-3. The console can quickly capture photos or record a video;
-
-4. When a person walks from outside the screen into the middle of the screen \(warning box\) for a period of time, the person box line changes from green to red and triggers an alarm;
-
-5. When a flame appears on the screen, the flame part is framed and an alarm is triggered after a period of time\.
-
-<img width="800" alt="4.interface" src="images/4.interface.png" />
-
-## Servo Pin Introduction
-
-The ZP15S servo consists of data, VCC, and GND: data is connected to the board's UART port to read signals, and from left to right they are data, VCC, and GND\. If the servo manufacturer's wiring is used, the pairing is as follows:
-
-Orange/white wire\-\-\-\-\-\-\-\-\-\-\-\-\-\-\- data
-
-Red wire\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\- VCC
-
-Brown/black wire\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\- GND
-
-<img width="800" alt="5.servo" src="images/5.servo.png" />
-
-
-# FAQ and Solutions
-
-## Camera misidentifies flame
-
-The camera used in this case has a relatively low resolution, so in some overexposed situations it may cause the camera to abnormally identify flames and smoke\. Replacing it with a higher\-definition camera can solve this\. The training dataset comes from the open\-source community, so it can also be directly replaced with the user's own trained model\.
-
-# Technical Support and Contributions
-
-If you encounter any problems during use, you are welcome to submit technical inquiries on the [Quectel official forum](https://forumschinese.quectel.com/c/quectel-pi/58)\. Our technical support team will answer you promptly\.
-
-You are also welcome to submit Issues to provide feedback or Pull Requests to contribute code improvements\!
-
+Issues and Pull Requests are welcome to help improve this project.
