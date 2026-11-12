@@ -1,0 +1,103 @@
+# ============================================================
+# demo-security-equipment v1.0 —— 统一配置文件(改这里就够, 重启生效)
+# ============================================================
+
+# ---- 硬件 ----
+camera:
+  device: ""                    # 留空=自动找USB摄像头节点(推荐); 也可写如 /dev/video73
+  width: 1280
+  height: 720
+  fps: 30
+  fourcc: MJPG                  # MJPG保帧率; 可改 YUYV
+
+servo:
+  enabled: true                 # 没有舵机改 false, 整个功能自动跳过
+  port: /dev/ttyS1              # 串口设备(排针UART1, 首次需 sudo qpi-config uart1 enable 后重启)
+  baud: 115200                  # ZP15S出厂波特率
+  id: 0
+  angle_max: 270                # 舵机模式1=270°(换模式3则填180)
+  center: 135                   # 开机/回中角度(=angle_max/2)
+  step: 15                      # 网页按钮每按一次转的角度
+  # 接线备忘: 信号(RX)→PIN8  GND→PIN6  VCC-5V→PIN4 (与README 2.2一致)
+
+web:
+  port: 5000                    # Web服务端口
+
+display:
+  show_boxes: true              # 框线总开关: false=画面不画任何识别框(含区域框)
+  show_person: true             # 人物框
+  show_fire: true               # 火焰/烟雾框
+  show_zone: true               # 布防区域框线(警告范围)
+  line_width: 2                 # 框线线宽(想纤细改1)
+  font_scale: 0.55              # 框上标签字号
+  box_alpha: 1.0                # 框线不透明度 0.2~1.0 (0.6左右=半透明水印感)
+
+# ---- 人体检测 / 入侵 ----
+model:
+  path: models/yolo_pose.rknn
+  input_size: [640, 640]
+  conf_threshold: 0.35
+  nms_threshold: 0.45
+
+intrusion:
+  # 归一化多边形(0~1), 左上角为原点; 截图量坐标: 像素x/1280, y/720
+  zone:
+    - [0.25, 0.12]
+    - [0.75, 0.12]
+    - [0.75, 0.95]
+    - [0.25, 0.95]
+  hold_seconds: 5.0             # 区域内滞留N秒报警
+  cooldown_s: 30.0              # 报警冷却
+  iou_thr: 0.30                 # 相邻帧重叠算同一人
+  track_timeout: 0.8
+
+# ---- 火焰/烟雾检测 ----
+fire_smoke:
+  enabled: true
+  model: models/dfire_yolov5s.rknn
+  names: [smoke, fire]          # 此模型0=smoke,1=fire(实测), 换模型务必先验证
+  layout: v5
+  conf_threshold: 0.50
+  nms_threshold: 0.45
+  every_n_frames: 2             # 隔帧推理省NPU
+  npu_core: 2                   # 火烟用核1, 人体用核0
+  fire_conf: 0.65               # 明火判定分
+  fire_frames: 3                # 连续N次命中才报警
+  fire_min_area: 0.002          # 框面积低于画面0.2%忽略
+  smoke_conf: 0.55
+  smoke_min_area: 0.01
+  smoke_window: 30              # 烟雾: 最近30次里命中10次报警
+  smoke_hits: 10
+  fire_cooldown: 30
+  smoke_cooldown: 60
+  fire_duration_s: 10           # 火警持续
+  smoke_duration_s: 3
+  static_move_thr: 0.015        # 静态目标过滤
+  static_reset_thr: 0.05
+  static_lock: 10
+  static_release: 8
+
+# ---- 报警(LED/蜂鸣) ----
+alarm:
+  duration_s: 10
+  led:
+    mode: pwm
+    chip: 0
+    line: 0
+    period: 200000
+    active_low: false
+  speaker:
+    mode: aplay
+    device: plughw:0,0
+    wav: assets/alarm.wav
+
+# ---- 录像 ----
+record:
+  save_dir: records             # 抓拍jpg + events.jsonl
+  enabled: true
+  rec_dir: records/rec          # 录像输出文件夹(取证+手动; 可写绝对路径如 /userdata/rec)
+  pre_s: 5                      # 报警前时长
+  post_s: 5                     # 报警后时长
+  fps: 10
+  keep_files: 3                 # 取证录像只留最新3段, 第4段落盘自动覆盖最旧
+  manual_keep: 15               # 手动录像只留最新15段(单段上限10分钟)
