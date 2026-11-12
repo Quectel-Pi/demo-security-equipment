@@ -164,6 +164,33 @@ record:
 
 配置完毕后，重新启动 demo，强制刷新页面。
 
+### 日志系统
+
+本示例的日志分为**事件日志和视觉日志**：
+
+**事件日志**包括：
+
+1. 终端实时日志：启动程序后持续在终端打印信息
+
+2. 文件存储日志：启动程序后会同步写到run\.log文件，每次启动后会覆盖上一次启动的日志内容
+
+3. 事件josn日志：record/event\.josnl，只记报警事件，一行一条 JSON（时间/类型/置信度/坐标/抓拍文件名），追加不覆盖
+
+<img width="800" alt="3.Log_shell" src="images/3.Log_shell.png" />
+
+<img width="800" alt="3.Log_run" src="images/3.Log_run.png" />
+
+**视觉日志**包括：
+
+1. 事件取证：records/rec/evt\_\*\.mp4，**只留最新 3 段**，第 4 段自动删最旧
+
+2. 预警抓拍：records/\*\.jpg，每次报警/每次点拍照各一张
+
+3. 手动录像：只留 15 段，单段上限 10 分钟
+
+<img width="800" alt="3.Log_rec" src="images/3.Log_rec.png" />
+
+
 ## UI界面说明
 
 主要有画面显示和控制台两个部分：
@@ -178,7 +205,7 @@ record:
 
 5. 当画面中出现火焰时会框住火焰部分并在一段时间后触发报警。
 
-<img width="800" alt="3.interface" src="images/3.interface_zn.png" />
+<img width="800" alt="4.interface" src="images/4.interface_zn.png" />
 
 ## 舵机引脚介绍
 
@@ -190,7 +217,7 @@ ZP15S舵机由data和VCC、GND组成：data接入板子uart口负责读取信号
 
 棕/黑色\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\- GND
 
-<img width="800" alt="4.servo" src="images/4.servo_zn.png" />
+<img width="800" alt="5.servo" src="images/5.servo_zn.png" />
 
 # 常见问题及解决方案
 

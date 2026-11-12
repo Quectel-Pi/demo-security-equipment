@@ -162,6 +162,32 @@ record:
 
 After the configuration is complete, restart the demo and force\-refresh the page\.
 
+### Logging System
+
+Logs in this demo are categorized into **Event Logs** and **Visual Logs**:
+
+**Event Logs** include:
+
+1. Real-time terminal logs: Continuously print messages to the terminal after program startup.
+
+2. File-based logs: Synchronously write to `run.log` after startup. The log from the previous run will be overwritten each time the program restarts.
+
+3. Event JSON logs: `record/event.jsonl`. Only alarm events are recorded. One JSON object per line (timestamp / type / confidence / coordinates / snapshot filename). New entries are appended without overwriting existing content.
+
+<img width="800" alt="3.Log_shell" src="images/3.Log_shell.png" />
+
+<img width="800" alt="3.Log_run" src="images/3.Log_run.png" />
+
+**Visual Logs** include:
+
+1. Event evidence videos: `records/rec/evt_*.mp4`. **Only the latest 3 clips are kept**. The oldest clip will be automatically deleted once a 4th clip is generated.
+
+2. Alert snapshots: `records/*.jpg`. One image is captured for each alarm trigger or manual photo capture.
+
+3. Manual recordings: A maximum of 15 clips are retained. Each clip is capped at 10 minutes.
+
+<img width="800" alt="3.Log_rec" src="images/3.Log_rec.png" />
+
 ## UI Interface Description
 
 It mainly consists of two parts: screen display and console:
