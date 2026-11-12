@@ -202,7 +202,7 @@ It mainly consists of two parts: screen display and console:
 
 5. When a flame appears on the screen, the flame part is framed and an alarm is triggered after a period of time\.
 
-<img width="800" alt="3.interface" src="images/3.interface.png" />
+<img width="800" alt="4.interface" src="images/4.interface.png" />
 
 ## Servo Pin Introduction
 
@@ -214,7 +214,7 @@ Red wire\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\- VCC
 
 Brown/black wire\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\- GND
 
-<img width="800" alt="4.servo" src="images/4.servo.png" />
+<img width="800" alt="5.servo" src="images/5.servo.png" />
 
 
 # FAQ and Solutions
